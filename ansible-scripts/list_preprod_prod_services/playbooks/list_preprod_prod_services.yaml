@@ -1,0 +1,23 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=cequetuveux"
+- hosts: "{{host}}"
+  tasks:
+
+  - name: upload list_preprod_prod_services.sh
+    copy:
+      src: ../remote_scripts/list_preprod_prod_services.sh
+      dest: /tmp/list_services.sh
+      mode: '1777'
+
+  - name: execute list_services.sh
+    # Le fichier list_services.sh permet de recupérer la liste des services et de leur version présents dans /data/services/
+    shell: bash /tmp/list_services.sh
+    register: script
+
+  - name: Download result.csv
+    fetch:
+      src: /tmp/result.csv
+      dest: ../retrieved_files/{{ inventory_hostname }}.csv
+      flat: yes
+
+  - name: Delete temporary files
+    shell: rm -rf /tmp/result.csv /tmp/list_services.sh

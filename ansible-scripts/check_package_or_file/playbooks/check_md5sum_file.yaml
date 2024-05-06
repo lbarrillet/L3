@@ -1,0 +1,56 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=cequetuveux"
+- hosts: "{{host}}"
+
+  become: yes
+
+  tasks:
+  - name: Check openvz list 
+    shell: /usr/sbin/vzlist --no-header | tr -s ' ' / | cut -d '/' -f2
+    register: openvzlist_proxmox
+
+  - name: Boucle on openvzlist_proxmox 
+    shell: |  
+      /usr/sbin/vzctl exec {{item}} md5sum "{{file_name}}"
+      if [ $? -eq 0 ]
+      then
+        echo "{{inventory_hostname}};{{item}};openvz;$(/usr/sbin/vzctl exec {{item}} hostname);$(/usr/sbin/vzctl exec {{item}} md5sum "{{file_name}}");$(/usr/sbin/vzctl exec {{item}} stat "{{file_name}}" | sed -n '6p' | cut -d ' ' -f2-3 | cut -d '.' -f1)" | sed 's/  /;/' >> /home/checkmd5sum_list.csv
+      else
+        /usr/sbin/vzctl exec {{item}} hostname
+        if [ $? -eq 0 ]
+        then
+          echo "{{inventory_hostname}};{{item}};openvz;$(/usr/sbin/vzctl exec {{item}} hostname);file_not_found;"{{file_name}}";N/A" | sed 's/  /;/' >> /home/checkmd5sum_list.csv
+        fi  
+      fi
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"  
+    register: openvz
+    
+  - name: Check lxc list 
+    shell: /usr/sbin/pct list | awk 'NR>1' | tr -s ' ' / | cut -d '/' -f1
+    register: lxclist_proxmox
+    
+  - name: Boucle on lxclist_proxmox
+    shell: |    
+      /usr/sbin/pct exec {{item}} -- md5sum "{{file_name}}"
+      if [ $? -eq 0 ]
+      then
+        echo "{{inventory_hostname}};{{item}};lxc;$(/usr/sbin/pct exec {{item}} -- hostname);$(/usr/sbin/pct exec {{item}} -- md5sum "{{file_name}}");$(/usr/sbin/pct exec {{item}} -- stat "{{file_name}}" | sed -n '6p' | cut -d ' ' -f2-3 | cut -d '.' -f1)" | sed 's/  /;/' >> /home/checkmd5sum_list.csv
+      else
+        /usr/sbin/pct exec {{item}} -- hostname
+        if [ $? -eq 0 ]
+        then
+          echo "{{inventory_hostname}};{{item}};lxc;$(/usr/sbin/pct exec {{item}} -- hostname);file_not_found;"{{file_name}}";N/A" | sed 's/  /;/' >> /home/checkmd5sum_list.csv
+        fi
+      fi
+    loop: "{{ lxclist_proxmox.stdout_lines }}"  
+    register: lxc
+    
+  - name: Download list
+    fetch:
+      src: /home/checkmd5sum_list.csv
+      dest: /data/ansible-scripts/check_package_or_file/retrieved_files/result.csv
+      ignore_errors: yes
+      
+  - name: delete file
+    file:
+      path: /home/checkmd5sum_list.csv
+      state: absent

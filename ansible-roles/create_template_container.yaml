@@ -1,0 +1,61 @@
+#- hosts: oss-950.dev.ives.fr
+#  become: true
+#
+#  tasks:
+#
+#  - name: "Juste pour le debug"
+#    debug: var=ansible_facts
+
+- hosts: "{{ host }}"
+  
+  roles:
+    - role: "test-role"
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: 'update_os'
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: 'set_locale_to_en_US.utf8'
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: update_yum.conf_dnf.conf
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: update_limits.conf
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: customizing_ssh_config
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: customizing_history_config
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: create_operation_user
+      become: yes
+      vars:
+        operation_password: '{{ operation_password }}'
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: update_sudoers_conf
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+
+    - role: install_list_rpm
+      become: yes
+      when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+      tags: test_role
+
+
+
+
+
+
+
+  
+
+    

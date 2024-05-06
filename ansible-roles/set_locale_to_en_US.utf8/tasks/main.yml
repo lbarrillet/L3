@@ -1,0 +1,29 @@
+---
+# tasks file for set_locale_to_en_US.utf8
+  - name: Write in environment for AlmaLinux
+    become: yes
+    copy:
+      dest: /etc/environment
+      content: |
+        LANG=en_US.utf8
+    when: ansible_facts['distribution'] == 'AlmaLinux'
+
+  - name: Write, create in environment and reboot
+    become: yes
+    block:
+    - name: Create environment file for CentOS
+      file:
+        path: /etc/environment
+        state: touch
+        mode: '0644'
+  
+    - name: Write in environment for CentOS
+      copy:
+        dest: /etc/environment
+        content: |
+          LANG=en_US.utf8
+  
+    - name: Rebbot for CentOS
+      reboot:
+        reboot_timeout: 120
+    when: ansible_facts['distribution'] == 'CentOS'

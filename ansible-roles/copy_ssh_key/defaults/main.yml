@@ -1,0 +1,4 @@
+---
+# defaults file for copy_ssh_khey
+ed25519_pub_key: test
+rsa_pub_key: test

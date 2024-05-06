@@ -1,0 +1,24 @@
+---
+# tasks file for create_ansible_user
+  - name: Create 'ansible' user
+    user:
+      name: 4n51bl3
+      password: "{{ ansible_password | password_hash('sha512') }}"
+      createhome: yes
+
+#  - name: Create dirctory
+#    shell: |
+#      cd /home/4n51bl3
+#      mkdir .ssh
+
+  - name: Create .ssh directory
+    file:
+      path: /home/4n51bl3/.ssh/
+      state: directory
+      mode: '0755'
+
+  - name: Create authorized key file
+    file:
+      path: /home/4n51bl3/.ssh/authorized_keys
+      state: touch
+      mode: '0644'

@@ -1,0 +1,15 @@
+- hosts: localhost
+  tasks:
+  - name: Test if modifications.csv file exists
+    stat: path=../retrieved_files/modifications.csv
+    register: file_exists
+  - name: Send emails to a bunch of users, with playbook report as an attachment.
+    mail:
+      host: localhost
+      port: 25
+      subject: "[Ansible] SSH creation report"
+      body: "Hello,\n\nYou'll find in the attached file, the list of all modifications done by Ansible.\n\nBest Regards,\nYour lovely robot."
+      attach:
+        - ../retrieved_files/modifications.csv
+      charset: us-ascii
+    when: file_exists.stat.exists

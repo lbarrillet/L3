@@ -1,0 +1,46 @@
+## "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=whatever"
+- hosts: "{{ host }}"
+  become: yes
+  tasks:
+
+  - name: New LXC container creation
+    community.general.proxmox:
+      vmid: "{{ container }}"
+      node: pve
+      api_user: root@pam
+      api_password: "{{ password }}"
+      api_host: "{{ host }}"
+      hostname: "{{ hostname }}"
+      ostemplate: "{{ os }}"
+      storage: local-lvm
+      memory: 512
+      swap: 20
+      cpus: 1
+      disk: 8
+      password: "{{ root_password }}"
+      netif: '{"net0":"name=eth0,gw=192.168.0.1,ip=192.168.102.{{ last_ip_byte }}/24,bridge=vmbr0"}'
+
+  - name: Start container
+    community.general.proxmox:
+      vmid: "{{ container }}"
+      api_user: root@pam
+      api_password: "{{ password }}"
+      api_host: "{{ host }}"
+      state: started
+
+  - name: Pause for 5 seconds
+    ansible.builtin.pause:
+      seconds: 5
+
+# Déterminer l'OS et le sauvegarder dans une variable Ansible.
+  - name: change os input
+    set_fact: os_name="{{ (os.split("/")[1]).split('-')[:2] | join('-') }}"
+
+  - name: Install RPM
+    include_tasks: "{{ os_name }}_install_rpm.yaml"
+
+# Installer OpenSSH-server  
+  - name: Install openssh-server
+    include_tasks: "{{ os_name }}_install_openssh-server.yaml"
+
+    

@@ -1,0 +1,11 @@
+---
+# tasks file for customizing_history_config
+  - name: Customizing HISTORY config
+    lineinfile:
+      path: /etc/profile
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+    with_items: 
+      - { line: 'HISTFILESIZE=1000000000', insertafter: 'HISTSIZE=1000' } 
+      - { line: 'PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"', insertafter: 'HISTFILESIZE' }
+      - { line: 'HISTTIMEFORMAT="[%F %T] "', insertafter: 'HISTSIZE=1000' }

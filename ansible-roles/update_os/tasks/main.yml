@@ -1,0 +1,17 @@
+---
+# tasks file for update_os
+  - name: Update the OS for AlmaLinux
+    dnf:
+      name:
+        - "*"
+      state: latest
+    when: ansible_facts['distribution'] == 'AlmaLinux'
+
+  - name: Update the OS for CentOS
+    yum:
+      name:
+        - "*"
+      state: latest
+    when: ansible_facts['distribution'] == 'CentOS'
+
+    

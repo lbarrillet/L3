@@ -1,0 +1,23 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=cequetuveux"
+- hosts: "{{host}}"
+
+  vars:
+    sha256sum_APLInfo_ref: "afb786fa7321912e4d017d8a245f217e148dab5a22930165e5b694712df6567d"
+
+  tasks:
+  - name: Retrieve proxmox's version
+    shell: pveversion | cut -d '/' -f2
+    register: pveversion_proxmox
+    
+  - name: Retrieve APLinfo checksum
+    shell: sha256sum /usr/share/perl5/PVE/APLInfo.pm | cut -c -64
+    register: sha256sum_APLInfo_result
+     
+  - name: Upload the patch when the version is 6.4.15 and the sha256 is correct
+    copy:
+      src: /data/ansible-scripts/install_pve.ives.fr_server/source_files/pve_6.4-15_add_pve.ives.fr_templates_server.patch
+      dest: /tmp/pve_6.4-15_add_pve.ives.fr_templates_server.patch
+      owner: operation
+      group: operation
+      mode: '0644'
+    when: sha256sum_APLInfo_result.stdout == sha256sum_APLInfo_ref and pveversion_proxmox.stdout == "6.4-15"

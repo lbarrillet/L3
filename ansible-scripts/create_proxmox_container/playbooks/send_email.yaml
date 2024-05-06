@@ -1,0 +1,16 @@
+- hosts: localhost
+  tasks:
+
+# Déterminer l'OS et le sauvegarder dans une variable Ansible.
+  - name: change os input
+    set_fact: os_name="{{ (os.split("/")[1]).split('-')[:2] | join('-') }}"
+
+  - name: Send emails to a bunch of users, with playbook report as an attachment.
+    mail:
+      host: localhost
+      port: 25
+      subject: "[Test] [Ansible] container creation report"
+      body: "Hello,\n\nYou'll find here, the list of all modifications done by Ansible.\n\nNew container created:\n\nContainer: '{{ host }}'\nOS: '{{ os_name }}'\nIP: 192.168.102.{{ ip }}\nRoot password: '{{ root_password }}'\nansible password '{{ ansible_password }}'\nOperation password: '{{ operation_password }}'\n\nBest Regards,\nYour lovely robot."
+      from: ansible@ives.fr
+      charset: us-ascii
+

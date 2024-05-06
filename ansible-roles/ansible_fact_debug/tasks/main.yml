@@ -1,0 +1,15 @@
+---
+# tasks file for test-role
+  - name: "Juste pour le debug"
+    debug: var=ansible_facts
+
+  - name: "debug"
+    debug: var=ansible_facts['distribution']
+    when: ansible_facts['distribution'] == 'CentOS'
+  
+  - name: debug2
+    debug:
+      msg: test
+
+  - name: debug3
+    debug: var=ansible_facts['distribution_major_version']

@@ -1,0 +1,7 @@
+Host *
+    UserKnownHostsFile=/dev/null
+    StrictHostKeyChecking=no
+
+Host web0.eu.ives.fr git2.ives.fr
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking=no

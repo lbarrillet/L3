@@ -1,0 +1,92 @@
+---
+# tasks file for install_list_rpm
+  - name: Intall RPM for almalinux
+    dnf:
+      name:
+        - bc
+        - file
+        - ivespkg
+        - less
+        - mailx
+        - man-pages
+        - man
+        - multitail
+        - nano
+        - net-tools
+        - patch
+        - screen
+        - sendmail
+        - sendmail-cf
+        - strace
+        - tcpdump
+        - telnet
+        - tree
+        - unzip
+        - vim
+        - wget
+        - yum-utils
+        - zip
+        - bind-utils
+        - iftop
+        - iotop
+        - iptraf-ng
+        - monit
+        - mysql
+        - nagios-plugins-disk
+        - nagios-plugins-load
+        - nagios-plugins-procs
+        - net-snmp
+        - nethogs
+        - nmap
+        - nrpe
+        - perf
+        - psmisc
+        - wireshark
+      state: present
+    when: ansible_facts['distribution'] == 'AlmaLinux'
+
+  - name: Intall RPM for CentOS
+    yum:
+      name:
+        - bc
+        - deltarpm
+        - file
+        - ivespkg
+        - less
+        - mailx
+        - man-pages
+        - man
+        - multitail
+        - nano
+        - net-tools
+        - patch
+        - screen
+        - sendmail
+        - sendmail-cf
+        - strace
+        - tcpdump
+        - telnet
+        - tree
+        - unzip
+        - vim
+        - wget
+        - yum-utils
+        - zip
+        - bind-utils
+        - iftop
+        - iotop
+        - iptraf-ng
+        - monit
+        - mysql
+        - nagios-plugins-disk
+        - nagios-plugins-load
+        - nagios-plugins-procs
+        - net-snmp
+        - nethogs
+        - nmap
+        - nrpe
+        - perf
+        - psmisc
+        - wireshark
+      state: present
+    when: ansible_facts['distribution'] == 'CentOS'

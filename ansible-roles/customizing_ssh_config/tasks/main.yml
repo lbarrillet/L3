@@ -1,0 +1,13 @@
+---
+# tasks file for customizing_ssh_config
+  - name: Customizing SSH config
+    replace:
+      path: /etc/ssh/sshd_config
+      regexp: "{{ item.regexp }}"
+      replace: "{{ item.replace }}"
+    with_items:
+      - { regexp: 'PermitRootLogin yes', replace: 'PermitRootLogin no' } 
+      - { regexp: '^.*UseDNS.*$', replace: 'UseDNS no' } 
+      - { regexp: '#ClientAliveInterval 0', replace: 'ClientAliveInterval 120' } 
+      - { regexp: 'PasswordAuthentication yes', replace: 'PasswordAuthentication no' } 
+      - { regexp: 'GSSAPIAuthentication yes', replace: 'GSSAPIAuthentication no' } 

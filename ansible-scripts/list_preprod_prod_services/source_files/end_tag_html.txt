@@ -1,0 +1,8 @@
+                        </tbody>
+                    </table>
+                </div> <!-- row mt-3 -->
+            </div> <!-- col-md-10 -->
+        </div>  <!-- row mt-3 -->
+    </div> <!-- container-fluid -->
+    <script>getUniqueValuesFromColumn();</script>
+</html>

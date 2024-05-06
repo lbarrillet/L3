@@ -1,0 +1,9 @@
+---
+# tasks file for copy_ssh_khey
+  - name: debug
+    debug:
+      msg: "{{ ed25519_pub_key }} hello {{ rsa_pub_key }}"
+
+  - name: create ansible user
+    
+

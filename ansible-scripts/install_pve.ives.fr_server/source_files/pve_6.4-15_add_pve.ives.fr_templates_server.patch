@@ -1,0 +1,14 @@
+--- /usr/share/perl5/PVE/APLInfo.pm	2022-09-21 14:33:50.197439563 +0200
++++ /usr/share/perl5/PVE/APLInfo.pm	2022-09-21 14:34:41.936769874 +0200
+@@ -204,6 +204,11 @@
+ 	    url => "https://releases.turnkeylinux.org/pve",
+ 	    file => 'aplinfo.dat',
+ 	},
++        {
++            host => "",
++            url => "",
++            file => 'aplinfo.dat',
++        },
+     ];
+ 
+     return $sources;

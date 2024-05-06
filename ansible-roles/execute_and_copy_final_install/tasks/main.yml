@@ -1,0 +1,24 @@
+---
+# tasks file for execute_and_copy_final_install
+  - name: copy finish_install_srcipt for almalinux
+    copy:
+      src: finish_install_8.sh
+      dest: /tmp
+      mode: '0644'
+    when: ansible_facts['distribution'] == 'AlmaLinux' and ansible_facts['distribution_major_version'] == '8'
+
+  - name: copy finish_install_srcipt for Centos7
+    copy:
+      src: finish_install_7.sh
+      dest: /tmp
+    when: ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_major_version'] == '7'
+
+  - name: copy finish_install_srcipt for Centos6
+    copy:
+      src: finish_install_6.sh
+      dest: /tmp
+    when: ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_major_version'] == '6'
+
+#TO DO: donner les droits d'execution puis exécuter le script
+  - name: execute script
+    script: /tmp/finish_install_8.sh

@@ -1,0 +1,61 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=cequetuveux"
+- hosts: "{{host}}"
+
+  become: true
+
+  tasks:    
+  - name: Check lxc list 
+    shell: /usr/sbin/pct list | awk 'NR>1' | tr -s ' ' / | cut -d '/' -f1
+    register: lxclist_proxmox
+    
+  - name: delete file
+    file:
+      path: /home/package_version.csv
+      state: absent
+      
+  - name: Boucle on lxclist_proxmox
+    shell: |    
+      if [ -n "$(/usr/sbin/pct exec {{item}} --  rpm -qa {{package_name}})" ]
+      then
+        echo "{{inventory_hostname}};{{item}};lxc;$(/usr/sbin/pct exec {{item}} -- hostname);$(/usr/sbin/pct exec {{item}} -- rpm -qa {{package_name}})" | sed 's/  /;/' >> /home/package_version.csv
+      else
+        /usr/sbin/pct exec {{item}} -- hostname
+        if [ $? -eq 0 ]
+        then
+          echo "{{inventory_hostname}};{{item}};lxc;$(/usr/sbin/pct exec {{item}} -- hostname);package_not_found" | sed 's/  /;/' >> /home/package_version.csv
+        fi
+      fi
+    loop: "{{ lxclist_proxmox.stdout_lines }}"  
+    register: lxc
+      
+  - name: Check openvz list 
+    shell: /usr/sbin/vzlist --no-header | tr -s ' ' / | cut -d '/' -f2
+    register: openvzlist_proxmox
+
+  - name: Boucle on openvzlist_proxmox 
+    shell: |  
+      if [ -n "$(/usr/sbin/vzctl exec {{item}} rpm -qa {{package_name}})" ] 
+      then
+        echo "{{inventory_hostname}};{{item}};openvz;$(/usr/sbin/vzctl exec {{item}} hostname);$(/usr/sbin/vzctl exec {{item}} rpm -qa {{package_name}})" | sed 's/  /;/' >> /home/package_version.csv
+      else
+        /usr/sbin/vzctl exec {{item}} hostname
+        if [ $? -eq 0 ]
+        then
+          echo "{{inventory_hostname}};{{item}};openvz;$(/usr/sbin/vzctl exec {{item}} hostname);package_not_found" | sed 's/  /;/' >> /home/package_version.csv
+        fi
+      fi
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"  
+    register: openvz
+      
+  - name: Download package_version.csv
+    fetch:
+      src: /home/package_version.csv
+      dest: /data/ansible-scripts/check_package_or_file/retrieved_files/package_version.csv
+      ignore_errors: yes
+      
+  - name: delete file
+    file:
+      path: /home/package_version.csv
+      state: absent
+      
+      

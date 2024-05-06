@@ -1,0 +1,35 @@
+---
+# tasks file for create_jenkins_user
+  - name: Create 'jenkins' user
+    user:
+      name: jenkins
+      password: "{{ jenkins_password | password_hash('sha512') }}"
+      createhome: yes
+
+  - name: Create .ssh directory
+    file:
+      path: /home/jenkins/.ssh/
+      state: directory
+      mode: '0755'
+
+  - name: Create authorized key file
+    file:
+      path: /home/jenkins/.ssh/authorized_keys
+      state: touch
+      mode: '0644'
+
+  - name: copy config file
+    copy:
+      src: config
+      dest: /home/jenkins/.ssh/config
+
+  - name: copy ed25519 key
+    copy:
+      src: "{{ item }}"
+      dest: /home/jenkins/.ssh
+    with_fileglob:
+      - id_ed25519
+      - id_ed25519.pub
+
+
+      

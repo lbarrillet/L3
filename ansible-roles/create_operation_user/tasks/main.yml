@@ -1,0 +1,17 @@
+---
+# tasks file for create_operation_user
+  - name: Create 'operation' user
+    user:
+      name: operation
+      password: "{{ operation_password | password_hash('sha512') }}"
+      createhome: yes
+
+  - name: debug
+    debug:
+      var: operation_password
+
+  - name: debug_2
+    debug:
+      msg: "{{ operation_password }}"
+
+      

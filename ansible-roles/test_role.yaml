@@ -1,0 +1,10 @@
+- hosts: oss-950.dev.ives.fr
+
+  roles:
+    - role: execute_and_copy_final_install
+      become: yes
+      tags: test_role
+    
+    - role: test-role
+
+

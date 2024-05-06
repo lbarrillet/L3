@@ -1,0 +1,218 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=whatever"
+- hosts: "{{ host }}"
+  become: yes
+  tasks:
+          
+# Dans le run.sh, ajouter automatiquement les hosts manquants
+
+##################################################
+# USE KEY IN VARIABLE                            #
+##################################################
+
+  - name: Register content of /sources_files/ansible_RSA_key.pub into variable
+    set_fact:
+      file_contents_RSA: "{{ lookup('pipe', 'cat ../source_files/ansible_rsa_key.pub') }}"
+
+  - name: Register content of /sources_files/ansible_ed25519_key.pub into variable
+    set_fact:
+      file_contents_ed25519: "{{ lookup('pipe', 'cat ../source_files/ansible_ed25519_key.pub') }}"
+
+##################################################
+# LXC                                            #
+##################################################
+
+  - name: Get LXC CT_ID list
+    shell: /usr/sbin/pct list | awk 'NR>1' | tr -s ' ' / | cut -d '/' -f1
+    register: lxclist_proxmox
+
+  - name: Get LXC CT_ID hostnames
+    shell: /usr/sbin/pct exec {{ item }} -- hostname
+    loop: "{{ lxclist_proxmox.stdout_lines }}"
+    ignore_errors: true
+    register: lxc_hostname_list
+
+  - name: Save hostname to CSV file
+    local_action:
+      module: copy
+      content: "{{ lxc_hostname_list.results | map(attribute='stdout') | join('\n') }}"
+      dest: ../retrieved_files/proxmox/lxclist_{{ inventory_hostname }}.csv
+
+  - name: Check if ansible user exist for LXC container
+    shell : /usr/sbin/pct exec {{ item }} -- id ansible
+    loop: "{{ lxclist_proxmox.stdout_lines }}"
+    ignore_errors: true
+    register: lxc_ansible_user
+
+  - name: Create new user for LXC container
+    shell: /usr/sbin/pct exec {{ item.item }} -- useradd -m -s /bin/bash ansible
+    loop: "{{ lxc_ansible_user.results }}"
+    ignore_errors: true
+    when: item.stdout | length == 0
+    register: new_user_lxc
+
+  - name: register LXC container's user added
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/pct exec {{ item.item.item }} -- hostname' | grep -v CHANGED); user added" >> ../retrieved_files/modifications.csv
+    loop: "{{ new_user_lxc.results }}"
+    ignore_errors: true
+    when: item.item.stderr is search("no such user", ignorecase=True)
+    register: container_modified
+
+  - name: Get OpenSSL version
+    shell: /usr/sbin/pct exec {{ item }} -- openssl version | cut -c 1-11
+    loop: "{{ lxclist_proxmox.stdout_lines }}"
+    register: openssl_versions
+
+  - name: Create .ssh directory and authorized_keys if they don't exist
+    shell: |
+      /usr/sbin/pct exec {{ item }} -- ls /home/ansible/.ssh/authorized_keys
+      if [ $? -ne 0 ]
+      then
+        /usr/sbin/pct exec {{ item }} -- mkdir -p /home/ansible/.ssh
+        /usr/sbin/pct exec {{ item }} -- touch /home/ansible/.ssh/authorized_keys
+      fi
+    loop: "{{ lxclist_proxmox.stdout_lines }}"
+    ignore_errors: true
+    register: file_and_directory_added_lxc
+
+  - name: Check if RSA SSH Key exists
+    # If grep find nothing in the file, it return 1 as error code and Ansible does not expect error code >= 0 it's why some steps are in error.
+    shell: /usr/sbin/pct exec {{ item.item }} -- grep {{ file_contents_RSA.split()[1] }} /home/ansible/.ssh/authorized_keys
+    loop: "{{ openssl_versions.results }}"
+    when: item.stdout <= "OpenSSL 1.0"
+    ignore_errors: true
+    register: rsa_ssh_key_exists
+
+  - name: Add RSA SSH key
+    shell: /usr/sbin/pct exec {{ item.item.item }} -- bash -c 'echo "ssh-rsa {{ file_contents_RSA.split()[1] }} ansible" >> /home/ansible/.ssh/authorized_keys'
+    loop: "{{ rsa_ssh_key_exists.results }}"
+    when: item.skipped is not defined and item.stdout | length == 0
+    ignore_errors: true
+    register: RSA_lxc_key_added
+
+  - name: register RSA LXC container modified
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/pct exec {{ item.item.item.item }} -- hostname' | grep -v CHANGE);RSA key added" >> ../retrieved_files/modifications.csv
+    loop: "{{ RSA_lxc_key_added.results }}"
+    when: item.item.stdout is defined and item.item.stdout | length == 0
+    ignore_errors: true
+    register: container_lxc_RSA_modified
+
+  - name: Check if ED25519 LXC SSH Key exists
+    # If grep find nothing in the file, it return 1 as error code and Ansible does not expect error code >= 0 it's why some steps are in error.
+    shell: /usr/sbin/pct exec {{ item.item }} -- grep {{ file_contents_ed25519.split()[1] }} /home/ansible/.ssh/authorized_keys
+    loop: "{{ openssl_versions.results }}"
+    when: item.stdout >= "OpenSSL 1.1"
+    ignore_errors: true
+    register: ed25519_LXC_ssh_key_exists
+
+  - name: Add ED25519 LXC SSH key
+    shell: /usr/sbin/pct exec {{ item.item.item }} -- bash -c 'echo "ssh-ed25519 {{ file_contents_ed25519.split()[1] }} ansible" >> /home/ansible/.ssh/authorized_keys'
+    loop: "{{ ed25519_LXC_ssh_key_exists.results }}"
+    when: item.skipped is not defined and item.stdout | length == 0
+    ignore_errors: true
+    register: ED25519_LXC_key_added
+
+  - name: register ED25519 LXC container modified
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/pct exec {{ item.item.item.item }} -- hostname' | grep -v CHANGED);ED25519 key added" >> ../retrieved_files/modifications.csv
+    loop: "{{ ED25519_LXC_key_added.results }}"
+    when: item.item.stdout is defined and item.item.stdout | length == 0 
+    ignore_errors: true
+    register: container_LXC_ED25519_modified
+
+###################################################
+# OPENVZ                                          #
+###################################################
+
+  - name: Get OPENVZ CT_ID list
+    shell: /usr/sbin/vzlist --no-header | tr -s ' ' / | cut -d '/' -f2
+    register: openvzlist_proxmox
+
+  - name: Get OPENVZ CT_ID hostnames
+    shell: /usr/sbin/vzctl exec {{ item }} hostname
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"
+    register: openvz_hostname_list
+
+  - name: Save hostname to CSV file
+    local_action:
+      module: copy
+      content: "{{ openvz_hostname_list.results | map(attribute='stdout') | join('\n') }}"
+      dest: ../retrieved_files/proxmox/openvzlist_{{ inventory_hostname }}.csv
+
+  - name: Check if ansible user exist for openvz container
+    shell : /usr/sbin/vzctl exec {{ item }} id ansible
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"
+    ignore_errors: true
+    register: openvz_ansible_user
+
+  - name: Create new user for openvz container
+    shell: /usr/sbin/vzctl exec {{ item.item }} useradd -m -s /bin/bash ansible
+    loop: "{{ openvz_ansible_user.results }}"
+    ignore_errors: true
+    when: item.stdout | length == 0
+    register: new_user_openvz
+
+  - name: register OPENVZ container's user added
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/vzctl exec {{ item.item.item }} hostname' | grep -v CHANGED);user added" >> ../retrieved_files/modifications.csv
+    loop: "{{ new_user_openvz.results }}"
+    ignore_errors: true
+    when: item.item.stderr is search("no such user", ignorecase=True)
+    register: container_modified
+
+  - name: Get OPENVZ OpenSSL version
+    shell: /usr/sbin/vzctl exec {{ item }} openssl version | cut -c 1-11
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"
+    register: openssl_openvz_versions
+
+  - name: Create .ssh directory and authorized_keys if they don't exist
+    shell: |
+      /usr/sbin/vzctl exec {{ item }} ls /home/ansible/.ssh/authorized_keys
+      if [ $? -ne 0 ]
+      then
+        /usr/sbin/vzctl exec {{item}} mkdir -p /home/ansible/.ssh
+        /usr/sbin/vzctl exec {{item}} touch /home/ansible/.ssh/authorized_keys
+      fi
+    loop: "{{ openvzlist_proxmox.stdout_lines }}"
+    register: file_and_directory_added_openvz
+
+  - name: Check if RSA SSH Key exists
+    # If grep find nothing in the file, it return 1 as error code and Ansible does not expect error code >= 0 it's why some steps are in error.
+    shell: /usr/sbin/vzctl exec {{ item.item }} grep {{ file_contents_RSA.split()[1] }} /home/ansible/.ssh/authorized_keys
+    loop: "{{ openssl_openvz_versions.results }}"
+    when: item.stdout <= "OpenSSL 1.0"
+    ignore_errors: true
+    register: rsa_openvz_ssh_key_exists
+
+  - name: Add RSA SSH key
+    shell: /usr/sbin/vzctl exec {{ item.item.item }} 'printf "%s\n" "ssh-rsa {{ file_contents_RSA.split()[1] }} ansible" >> /home/ansible/.ssh/authorized_keys'
+    loop: "{{ rsa_openvz_ssh_key_exists.results }}"
+    when: item.skipped is not defined and item.stdout | length == 0
+    ignore_errors: true
+    register: RSA_key_added
+
+  - name: register RSA container modified
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/vzctl exec {{ item.item.item.item }} hostname' | grep -v CHANGE);RSA key added" >> ../retrieved_files/modifications.csv
+    loop: "{{ RSA_key_added.results }}"
+    when: item.item.stdout is defined and item.item.stdout | length == 0
+    ignore_errors: true
+    register: container_RSA_modified
+
+  - name: Check if ED25519 SSH Key exists
+    # If grep find nothing in the file, it return 1 as error code and Ansible does not expect error code >= 0 it's why some steps are in error.
+    shell: /usr/sbin/vzctl exec {{ item.item }} grep {{ file_contents_ed25519.split()[1] }} /home/ansible/.ssh/authorized_keys
+    loop: "{{ openssl_openvz_versions.results }}"
+    when: item.stdout >= "OpenSSL 1.1"
+    ignore_errors: true
+    register: ed25519_openvz_ssh_key_exists
+
+  - name: Add ED25519 SSH key
+    shell: /usr/sbin/vzctl exec {{ item.item.item }} 'printf "%s\n" "ssh-ed25519 {{ file_contents_ed25519.split()[1] }} ansible" >> home/ansible/.ssh/authorized_keys'
+    loop: "{{ ed25519_openvz_ssh_key_exists.results }}"
+    when: item.skipped is not defined and item.stdout | length == 0
+    register: ED25519_key_added
+
+  - name: register ED25519 container modified
+    local_action: shell echo "{{ inventory_hostname }};{{ item.item.item.item }};$(ansible {{ inventory_hostname }} -b -u operation -m shell -a '/usr/sbin/vzctl exec {{ item.item.item.item }} hostname' | grep -v CHANGED);ED25519 key added" >>../retrieved_files/modifications.csv
+    loop: "{{ ED25519_key_added.results }}"
+    when: item.item.stdout is defined and item.item.stdout | length == 0
+    ignore_errors: true
+    register: container_ED25519_modified
+

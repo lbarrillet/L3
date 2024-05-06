@@ -1,0 +1,66 @@
+# "{{host}}" is used with ansible-playbook command, by adding --extra-vars "host=whatever"
+- hosts: "{{ host }}"
+  become: yes
+  tasks:
+
+  # Determine OS
+  - name: Determine OS
+    set_fact: os_name="{{ (os.split("/")[1]).split('-')[:2] | join('-') }}"
+
+  - name: Change User password
+    user:
+      name: "User"
+      password: "{{ ansible_password }}"
+
+#  - name: Install RPM
+#    include_tasks: "{{ os_name }}_install_rpm.yaml"
+#Cette tâche est réalisé plus tôt, mais cela pose problème pour centos6 dont les dépots ne sont plus accéssible
+
+  - name: Update the OS
+    include_tasks: "{{ os_name }}_update_os.yaml"
+
+  - name: Set locale to en_US.utf8
+    include_tasks: "{{ os_name }}_set_utf8.yaml"
+
+  - name: Update yum.conf & dnf.conf
+    include_tasks: "{{ os_name }}_update_yum&dnf_conf.yaml"
+
+  - name: Update limits.conf
+    lineinfile:
+      path: /etc/security/limits.conf
+      line: '* soft core unlimited'
+      insertbefore: '^# End of file'
+
+  - name: Customizing SSH config
+    replace:
+      path: /etc/ssh/sshd_config
+      regexp: "{{ item.regexp }}"
+      replace: "{{ item.replace }}"
+    with_items:
+      - { regexp: 'PermitRootLogin yes', replace: 'PermitRootLogin no' } #OK sur almalinux
+      - { regexp: '^.*UseDNS.*$', replace: 'UseDNS no' } #Déja de base en no sur almalinux
+      - { regexp: '#ClientAliveInterval 0', replace: 'ClientAliveInterval 120' } #OK sur almalinux
+      - { regexp: 'PasswordAuthentication yes', replace: 'PasswordAuthentication no' } #OK sur almalinux
+      - { regexp: 'GSSAPIAuthentication yes', replace: 'GSSAPIAuthentication no' }  #OK sur almalinux
+      
+  - name: Customizing HISTORY config
+    lineinfile:
+      path: /etc/profile
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+    with_items: 
+      - { line: 'HISTFILESIZE=1000000000', insertafter: 'HISTSIZE=1000' } 
+      - { line: 'PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"', insertafter: 'HISTFILESIZE' }
+      - { line: 'HISTTIMEFORMAT="[%F %T] "', insertafter: 'HISTSIZE=1000' }
+
+  - name: Create 'operation' user
+    user:
+      name: operation
+      password: "{{ operation_password }}"
+      createhome: yes
+
+  - name: Update SUDOERS conf
+    lineinfile:
+      path: /etc/sudoers
+      line: 'operation ALL=(ALL) ALL'
+      insertafter: '^root'

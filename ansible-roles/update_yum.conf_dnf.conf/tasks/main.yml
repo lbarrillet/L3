@@ -1,0 +1,15 @@
+---
+# tasks file for update_yum.conf_dnf.conf
+  - name: Update yum.conf
+    replace:
+      path: /etc/yum.conf
+      regexp: 'installonly_limit=3'
+      replace: 'installonly_limit=15'
+    when: ansible_facts['distribution'] == 'AlmaLinux' or ansible_facts['distribution'] == 'CentOS'
+  
+  - name: Update dnf.conf
+    replace:
+      path: /etc/dnf/dnf.conf
+      regexp: 'installonly_limit=3'
+      replace: 'installonly_limit=15'
+    when: ansible_facts['distribution'] == 'AlmaLinux'
