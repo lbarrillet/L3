@@ -1,7 +1,7 @@
 # Projet | cadre universitaire
 
 ## ansible-roles
-obselète
+obsolète
 ## ansible scripts
 travaux d'automatisaiton
 ## web-developement
